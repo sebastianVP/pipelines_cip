@@ -7,7 +7,7 @@ from pathlib import Path
 # ============================================================
 
 START_DATE = "19640101"
-END_DATE   = "20260512"
+END_DATE   = "20260526"
 
 OUTPUT_DIR = Path("OMNI_DATA")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -16,17 +16,18 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # VARIABLES OMNIWEB
 # ============================================================
 #
-# 9  -> Scalar_B_nT
-# 24 -> SW_Proton_Density
-# 39 -> Kp_Index
-# 41 -> Dst_Index
-# 42 -> AE_Index
-# 50 -> ap_Index
-# 51 -> f10.7_Index
+# 8  -> Scalar_B_nT
+# 23 -> SW_Proton_Density
+# 38 -> Kp_Index
+# 40 -> Dst_Index
+# 49 -> ap_Index
+# 50 -> f10.7_Index
+# 41 -> AE_Index
 #
 # ============================================================
 
-vars_list = [9, 24, 39, 41, 50, 51, 42]
+vars_list = [8, 23, 38, 40, 49, 50, 41]
+
 
 # ============================================================
 # REQUEST OMNIWEB
@@ -35,7 +36,7 @@ vars_list = [9, 24, 39, 41, 50, 51, 42]
 base_url = "https://omniweb.gsfc.nasa.gov/cgi/nx1.cgi"
 
 params = {
-    "activity": "ftp",
+    "activity": "ftp",   # <- IMPORTANTE
     "res": "hour",
     "spacecraft": "omni2",
     "start_date": START_DATE,

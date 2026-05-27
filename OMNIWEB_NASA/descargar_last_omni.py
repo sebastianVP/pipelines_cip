@@ -11,20 +11,20 @@ OUTPUT_DIR = Path("OMNI_DATA_LAST")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # ============================================================
-# VARIABLES EN EL ORDEN SOLICITADO
+# VARIABLES OMNIWEB
 # ============================================================
 #
-# 9  -> Scalar_B_nT
-# 24 -> SW_Proton_Density
-# 39 -> Kp_Index
-# 41 -> Dst_Index
-# 50 -> ap_Index
-# 51 -> f10.7_Index
-# 42 -> AE_Index
+# 8  -> Scalar_B_nT
+# 23 -> SW_Proton_Density
+# 38 -> Kp_Index
+# 40 -> Dst_Index
+# 49 -> ap_Index
+# 50 -> f10.7_Index
+# 41 -> AE_Index
 #
 # ============================================================
 
-vars_list = [9, 24, 39, 41, 50, 51, 42]
+vars_list = [8, 23, 38, 40, 49, 50, 41]
 
 # ============================================================
 # CONFIGURACIÓN OMNIWEB
