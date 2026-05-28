@@ -1,6 +1,6 @@
 """
 ==============================================================
-EXTRACCIÓN TEC NOAA POR DEPARTAMENTO
+EXTRACCIÓN TEC, ROTEC Y ROTI NOAA - ÚLTIMO ARCHIVO
 ==============================================================
 
 DESCRIPCIÓN
@@ -10,9 +10,10 @@ Este script:
 1. Busca automáticamente el último archivo NOAA .nc.
 2. Obtiene coordenadas del departamento.
 3. Busca el píxel NOAA más cercano.
-4. Extrae la serie temporal TEC.
-5. Convierte la información a CSV.
-6. Guarda el resultado automáticamente.
+4. Extrae TEC.
+5. Calcula ROTEC.
+6. Calcula ROTI.
+7. Genera automáticamente un CSV.
 
 CARPETAS:
 --------------------------------------------------------------
@@ -41,39 +42,28 @@ import pandas as pd
 
 from netCDF4 import Dataset
 from geopy.geocoders import Nominatim
-# ==============================================================
-# FUNCIÓN PRINCIPAL
-# ==============================================================
-
 
 # ==============================================================
-# FUNCIÓN: OBTENER COORDENADAS DEL DEPARTAMENTO
+# FUNCIÓN: OBTENER COORDENADAS
 # ==============================================================
 
 def obtener_lat_lon(departamento, pais="Peru"):
     """
-    Obtiene coordenadas geográficas automáticamente usando geopy.
-
-    Parámetros:
-    ----------------------------------------------------------
-    departamento : str
-        Nombre del departamento o ciudad.
-
-    pais : str
-        País de referencia (por defecto Perú).
-
-    Retorna:
-    ----------------------------------------------------------
-    latitud, longitud
+    Obtiene coordenadas automáticamente.
     """
 
     geolocator = Nominatim(user_agent="geoapi")
 
-    ubicacion = geolocator.geocode(f"{departamento}, {pais}")
+    ubicacion = geolocator.geocode(
+        f"{departamento}, {pais}"
+    )
 
     if ubicacion:
 
-        return ubicacion.latitude, ubicacion.longitude
+        return (
+            ubicacion.latitude,
+            ubicacion.longitude
+        )
 
     else:
 
@@ -81,19 +71,14 @@ def obtener_lat_lon(departamento, pais="Peru"):
             f"No se encontraron coordenadas para: {departamento}"
         )
 
+# ==============================================================
+# FUNCIÓN: OBTENER ÚLTIMO ARCHIVO NOAA
+# ==============================================================
 
-def procesar_nc_por_departamento(
-    departamento,
-    carpeta_nc,
-    carpeta_salida
-):
+def obtener_ultimo_archivo_nc(carpeta_nc):
     """
-    Procesa el último archivo NOAA .nc para un departamento.
+    Busca automáticamente el último archivo .nc
     """
-
-    # ----------------------------------------------------------
-    # Buscar último archivo .nc
-    # ----------------------------------------------------------
 
     archivos_nc = sorted([
         f for f in os.listdir(carpeta_nc)
@@ -102,62 +87,51 @@ def procesar_nc_por_departamento(
 
     if len(archivos_nc) == 0:
 
-        raise FileNotFoundError(
+        raise ValueError(
             "No se encontraron archivos .nc"
         )
 
-    ultimo_archivo = archivos_nc[-1]
+    return archivos_nc[-1]
 
-    ruta_nc = os.path.join(
-        carpeta_nc,
-        ultimo_archivo
-    )
+# ==============================================================
+# FUNCIÓN: EXTRAER TEC, ROTEC Y ROTI
+# ==============================================================
 
-    print(f"\n📂 Archivo NOAA: {ultimo_archivo}")
-
-    # ----------------------------------------------------------
-    # Obtener coordenadas
-    # ----------------------------------------------------------
-
-    lat_obj, lon_obj = obtener_lat_lon(departamento)
-
-    print(
-        f"📍 Coordenadas -> "
-        f"Lat: {lat_obj:.2f}, "
-        f"Lon: {lon_obj:.2f}"
-    )
+def extraer_tec_y_roti_nc(nc, lat_val, lon_val):
+    """
+    Extrae TEC, ROTEC y ROTI desde un archivo NetCDF.
+    """
 
     # ----------------------------------------------------------
-    # Abrir NetCDF
+    # Leer variables NOAA
     # ----------------------------------------------------------
 
-    nc = Dataset(ruta_nc, mode="r")
+    latitudes = nc.variables['latitude'][:]
 
-    latitudes = nc.variables["latitude"][:]
+    longitudes = nc.variables['longitude'][:]
 
-    longitudes = nc.variables["longitude"][:]
+    time = nc.variables['time'][:]
 
-    time = nc.variables["time"][:]
-
-    tec = nc.variables["TEC"][:]
+    tec = nc.variables['TEC'][:]
 
     # ----------------------------------------------------------
-    # Ajustar longitud NOAA
+    # Ajustar longitud NOAA (0–360)
     # ----------------------------------------------------------
 
-    if lon_obj < 0:
-        lon_obj = 360 + lon_obj
+    if lon_val < 0:
+
+        lon_val = 360 + lon_val
 
     # ----------------------------------------------------------
     # Buscar píxel más cercano
     # ----------------------------------------------------------
 
     lat_idx = np.argmin(
-        np.abs(latitudes - lat_obj)
+        np.abs(latitudes - lat_val)
     )
 
     lon_idx = np.argmin(
-        np.abs(longitudes - lon_obj)
+        np.abs(longitudes - lon_val)
     )
 
     lat_real = latitudes[lat_idx]
@@ -165,121 +139,263 @@ def procesar_nc_por_departamento(
     lon_real = longitudes[lon_idx]
 
     # ----------------------------------------------------------
-    # Extraer serie TEC
+    # Extraer serie temporal TEC
     # ----------------------------------------------------------
 
-    tec_serie = tec[:, lat_idx, lon_idx]
+    tec_lugar = tec[:, lat_idx, lon_idx]
+
+    # ----------------------------------------------------------
+    # Tiempo float
+    # ----------------------------------------------------------
+
+    tiempo = time.astype(float)
+
+    # ----------------------------------------------------------
+    # Calcular ROTEC
+    # ----------------------------------------------------------
+
+    delta_tec = np.diff(tec_lugar)
+
+    delta_t = np.diff(tiempo)
+
+    rotec = delta_tec / delta_t
+
+    # ----------------------------------------------------------
+    # Calcular ROTI
+    # ----------------------------------------------------------
+
+    window_size = 5
+
+    roti = np.array([
+
+        np.nanstd(
+            rotec[i:i + window_size]
+        )
+
+        for i in range(
+            len(rotec) - window_size + 1
+        )
+
+    ])
+
+    # ----------------------------------------------------------
+    # Ajustar tamaños
+    # ----------------------------------------------------------
+
+    tiempo_recortado = tiempo[
+        3:len(roti) + 3
+    ]
+
+    tec_recortado = tec_lugar[
+        3:len(roti) + 3
+    ]
+
+    rotec_recortado = rotec[
+        2:len(roti) + 2
+    ]
+
+    return (
+
+        tiempo_recortado,
+
+        tec_recortado,
+
+        rotec_recortado,
+
+        roti,
+
+        lat_real,
+
+        lon_real
+
+    )
+
+# ==============================================================
+# FUNCIÓN PRINCIPAL
+# ==============================================================
+
+def procesar_departamento(
+    departamento,
+    carpeta_nc,
+    carpeta_salida
+):
+    """
+    Procesa el último archivo NOAA.
+    """
+
+    # ----------------------------------------------------------
+    # Obtener coordenadas
+    # ----------------------------------------------------------
+
+    lat_obj, lon_obj = obtener_lat_lon(
+        departamento
+    )
+
+    print(
+        f"\n📍 {departamento}: "
+        f"lat={lat_obj:.2f}, "
+        f"lon={lon_obj:.2f}"
+    )
+
+    # ----------------------------------------------------------
+    # Buscar último archivo NOAA
+    # ----------------------------------------------------------
+
+    ultimo_archivo = obtener_ultimo_archivo_nc(
+        carpeta_nc
+    )
+
+    ruta_nc = os.path.join(
+        carpeta_nc,
+        ultimo_archivo
+    )
+
+    print(f"📂 Último archivo: {ultimo_archivo}")
+
+    # ----------------------------------------------------------
+    # Abrir NetCDF
+    # ----------------------------------------------------------
+
+    nc = Dataset(
+        ruta_nc,
+        mode="r"
+    )
+
+    # ----------------------------------------------------------
+    # Extraer TEC, ROTEC y ROTI
+    # ----------------------------------------------------------
+
+    (
+        tiempo,
+        tec,
+        rotec,
+        roti,
+        lat_real,
+        lon_real
+    ) = extraer_tec_y_roti_nc(
+        nc,
+        lat_obj,
+        lon_obj
+    )
+
+    nc.close()
 
     # ----------------------------------------------------------
     # Crear DataFrame
     # ----------------------------------------------------------
 
-    df = pd.DataFrame({
-        "datetime_s": time.astype(float),
-        "TEC": tec_serie,
-        "latitude": lat_real,
-        "longitude": lon_real
+    df_TEC_ROTI = pd.DataFrame({
+
+        "Datetime": pd.to_datetime(
+            tiempo,
+            unit="s"
+        ),
+
+        "TEC": tec,
+
+        "ROTEC": rotec,
+
+        "ROTI": roti
+
     })
 
     # ----------------------------------------------------------
-    # Convertir tiempo UNIX
+    # Usar tiempo como índice
     # ----------------------------------------------------------
 
-    df["datetime"] = pd.to_datetime(
-        df["datetime_s"],
-        unit="s"
-    )
-
-    df = df[
-        [
-            "datetime",
-            "TEC",
-            "latitude",
-            "longitude"
-        ]
-    ]
-
-    # ----------------------------------------------------------
-    # Extraer fecha del archivo NOAA
-    # ----------------------------------------------------------
-
-    fecha_archivo = ultimo_archivo.replace(
-        "GloTEC_TEC_",
-        ""
-    ).replace(
-        ".nc",
-        ""
+    df_TEC_ROTI = df_TEC_ROTI.set_index(
+        "Datetime"
     )
 
     # ----------------------------------------------------------
-    # Nombre final CSV
+    # Extraer fecha desde nombre NOAA
     # ----------------------------------------------------------
 
-    nombre_csv = (
-        f"TEC_ROTI_{departamento}_"
-        f"{fecha_archivo}_last.csv"
+    # ejemplo:
+    # glotec_2d_2025_05_28_0000.nc
+
+    nombre_sin_ext = os.path.splitext(
+        ultimo_archivo
+    )[0]
+
+    partes = nombre_sin_ext.split("_")
+
+    # YYYY_MM_DD
+    fecha_archivo = "_".join(
+        partes[-3:]
     )
 
-    ruta_csv = os.path.join(
+    # ----------------------------------------------------------
+    # Nombre salida
+    # ----------------------------------------------------------
+
+    output_csv = os.path.join(
+
         carpeta_salida,
-        nombre_csv
+
+        f"TEC_ROTI_{departamento}_{fecha_archivo}_LAST.csv"
+
     )
 
     # ----------------------------------------------------------
-    # Guardar CSV
+    # Exportar CSV
     # ----------------------------------------------------------
 
-    df.to_csv(ruta_csv, index=False)
+    df_TEC_ROTI.to_csv(output_csv)
 
-    nc.close()
+    print("\n✅ CSV generado correctamente")
 
-    print(f"✅ CSV generado: {nombre_csv}")
+    print(f"📁 Guardado en:\n{output_csv}")
 
-
-
+    print(
+        f"📌 Pixel NOAA usado: "
+        f"lat={lat_real:.2f}, "
+        f"lon={lon_real:.2f}"
+    )
 
 # ==============================================================
-# CONFIGURACIÓN AUTOMÁTICA DE RUTAS
+# CONFIGURACIÓN DE RUTAS
 # ==============================================================
 
-# Ruta donde está el script
-ruta_script = os.path.dirname(os.path.abspath(__file__))
+ruta_script = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
 # --------------------------------------------------------------
-# Carpeta donde están los archivos NOAA (.nc)
+# Carpeta entrada NOAA
 # --------------------------------------------------------------
 
 carpeta_nc = os.path.join(
+
     ruta_script,
+
     "TEC_NOAA"
+
 )
 
 # --------------------------------------------------------------
-# Carpeta de salida automática
+# Carpeta salida CSV
 # --------------------------------------------------------------
 
 carpeta_salida = os.path.join(
+
     ruta_script,
+
     "TEC_ROTI_DPTO_LAST"
+
 )
 
-# Crear carpeta automáticamente
-os.makedirs(carpeta_salida, exist_ok=True)
-
+os.makedirs(
+    carpeta_salida,
+    exist_ok=True
+)
 
 # ==============================================================
-# EJECUCIÓN AUTOMÁTICA
+# LISTA DE DEPARTAMENTOS
 # ==============================================================
-
-print("\n======================================")
-print("INICIANDO PROCESAMIENTO TEC NOAA")
-print("======================================")
-
-# --------------------------------------------------------------
-# Lista de departamentos
-# --------------------------------------------------------------
 
 departamento_list = [
+
     "Lima",
     "Huancayo",
     "Piura",
@@ -288,32 +404,35 @@ departamento_list = [
     "Ayacucho",
     "Tacna",
     "Iquitos"
+
 ]
 
-# --------------------------------------------------------------
-# Procesamiento automático
-# --------------------------------------------------------------
+# ==============================================================
+# EJECUCIÓN
+# ==============================================================
 
 for departamento in departamento_list:
 
-    print("\n--------------------------------------------------")
-    print(f"Procesando departamento: {departamento}")
-    print("--------------------------------------------------")
-
     try:
 
-        procesar_nc_por_departamento(
-            departamento=departamento,
-            carpeta_nc=carpeta_nc,
-            carpeta_salida=carpeta_salida
-        )
+        procesar_departamento(
 
-        print(f"✅ Finalizado: {departamento}")
+            departamento=departamento,
+
+            carpeta_nc=carpeta_nc,
+
+            carpeta_salida=carpeta_salida
+
+        )
 
     except Exception as e:
 
-        print(f"❌ Error en {departamento}: {e}")
+        print(
+            f"\n❌ Error en {departamento}: {e}"
+        )
 
 print("\n======================================")
+
 print("PROCESAMIENTO FINALIZADO")
+
 print("======================================")

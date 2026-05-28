@@ -338,6 +338,24 @@ def procesar_nc_por_departamento(
             "archivo"
         ]
     ]
+    # ----------------------------------------------------------
+    # Usar datetime como índice
+    # ----------------------------------------------------------
+
+    #df_total = df_total.set_index("datetime")
+
+    # ----------------------------------------------------------
+    # Eliminar columnas auxiliares
+    # ----------------------------------------------------------
+
+    df_total = df_total.drop(
+        columns=[
+            "lat",
+            "lon",
+            "archivo"
+        ]
+    )
+
 
     # ----------------------------------------------------------
     # Nombre del archivo de salida
