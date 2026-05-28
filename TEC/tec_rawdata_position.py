@@ -321,7 +321,7 @@ def procesar_nc_por_departamento(
     # Convertir tiempo UNIX a datetime
     # ----------------------------------------------------------
 
-    df_total["datetime"] = pd.to_datetime(
+    df_total["Datetime"] = pd.to_datetime(
         df_total["datetime_s"],
         unit="s"
     )
@@ -329,7 +329,7 @@ def procesar_nc_por_departamento(
     # Reordenar columnas
     df_total = df_total[
         [
-            "datetime",
+            "Datetime",
             "TEC",
             "ROTEC",
             "ROTI",
