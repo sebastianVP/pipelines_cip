@@ -7,4 +7,6 @@ OMNIWEB_NASA/OMNI_DATA_LAST/
 OMNIWEB_NASA/OMNI_DATA_CSV/
 S4_LISN/data 
 S4_LISN/outputs
+S4_LISN/processed_s4
+INTEGRACION/integrated_dataset
 *.nc
