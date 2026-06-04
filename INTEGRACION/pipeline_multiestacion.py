@@ -29,44 +29,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 
 PROJECT_DIR = SCRIPT_DIR.parent
 
-# ============================================================
-# DIRECTORIOS DE DATOS
-# ============================================================
-
-S4_DIR = (
-    PROJECT_DIR /
-    "S4_LISN" /
-    "processed_s4"
-)
-
-TEC_DIR = (
-    PROJECT_DIR /
-    "TEC" /
-    "TEC_ROTI_DPTO"
-)
-
-OMNI_DIR = (
-    PROJECT_DIR /
-    "OMNIWEB_NASA" /
-    "OMNI_DATA_CSV"
-)
-
-OUTPUT_DIR = (
-    SCRIPT_DIR /
-    "integrated_dataset"
-)
-
-OUTPUT_DIR.mkdir(
-    exist_ok=True
-)
 
 # ============================================================
 # CONFIGURACIÓN DE RUTAS
 # ============================================================
-
-SCRIPT_DIR = Path(__file__).resolve().parent
-
-PROJECT_DIR = SCRIPT_DIR.parent
 
 S4_DIR = (
     PROJECT_DIR /
@@ -401,9 +367,7 @@ def integrar_datasets(file_s4, file_tec, file_omni):
     ).dropna()
 
     columnas_finales = [
-
         "ID_Satelite",
-        "S4",
         "Azimuth",
         "Elevacion",
 
@@ -415,7 +379,9 @@ def integrar_datasets(file_s4, file_tec, file_omni):
         "Dst_Index",
         "ap_Index",
         "f10.7_Index",
-        "AE_Index"
+        "AE_Index",
+
+        "S4"
     ]
 
     df_final = df_final[
@@ -427,11 +393,11 @@ def integrar_datasets(file_s4, file_tec, file_omni):
         .reset_index()
         .rename(
             columns={
-                "index": "Datetime"
+                "index": "Tiempo"
             }
         )
     )
-
+    print(df_final.head())
     return df_final
 
 
@@ -506,7 +472,25 @@ df_final = integrar_datasets(
     FILE_OMNI
 )
 
-df_final["Estacion"] = estacion
+
+df_final.insert(
+    loc=df_final.columns.get_loc("Elevacion") + 1,
+    column="Estacion",
+    value=estacion
+)
+
+# ============================================================
+# REDONDEAR COLUMNAS FLOAT A 5 DECIMALES
+# ============================================================
+
+columnas_float = df_final.select_dtypes(
+    include=["float64", "float32"]
+).columns
+
+df_final[columnas_float] = (
+    df_final[columnas_float]
+    .round(6)
+)
 
 output_file = (
     OUTPUT_DIR /
