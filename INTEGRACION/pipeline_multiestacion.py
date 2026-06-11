@@ -275,7 +275,7 @@ def integrar_datasets(file_s4, file_tec, file_omni):
     print("\n===================================")
     print("LECTURA OMNI")
     print("===================================")
-
+    
     df_omni = pd.read_csv(
         file_omni,
         parse_dates=["Datetime"]
