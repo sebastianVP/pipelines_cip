@@ -14,7 +14,7 @@
 
 import pandas as pd
 from pathlib import Path
-
+from datetime import datetime
 
 # ============================================================
 # RUTA DEL SCRIPT
@@ -492,10 +492,13 @@ df_final[columnas_float] = (
     .round(6)
 )
 
+fecha_actual = datetime.now().strftime("%d%m%Y")
+
 output_file = (
     OUTPUT_DIR /
-    f"dataset_integrado_{s4_code}.csv"
+    f"DF_FINAL_{estacion}_{fecha_actual}.csv"
 )
+
 
 df_final.to_csv(
     output_file,
